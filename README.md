@@ -16,7 +16,7 @@ DeFi Kingdoms is a highly complex decentralized finance application that cannot 
 
 ## Authors
 Abhigyan Pushkar
-[smartabhi0004@gmail.com]
+smartabhi0004@gmail.com
 
 ## License
 
