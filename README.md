@@ -1,4 +1,4 @@
-# Defi Empire-  A Simple DeFI Kingdom Clone
+# Avalanche Subnets
 
 ## Description
 DeFi Kingdoms is a highly complex decentralized finance application that cannot be fully comprehended in just a few hours. Therefore, in this discussion, we will only be covering the fundamentals related to custom subnet development, as this is what we are most interested in learning about. If you're looking to gain a more comprehensive understanding of the platform, we highly recommend reading the official documentation. There is a wealth of information available that can help you gain insight into how it was implemented and how you can build on top of it if you're interested. So let's focus on the custom subnet development aspects of DeFi Kingdoms and explore the exciting opportunities and possibilities that this feature offers.
