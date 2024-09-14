@@ -1,30 +1,31 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.17;
-
+pragma solidity 0.8.26;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Vault {
     IERC20 public immutable token;
 
-    mapping(address => uint) public balanceOf;
     uint public totalSupply;
-
-    struct Player {
-        uint level;
-        uint upgradeCost;
-        uint lastRewardTime;
-    }
-
-    mapping(address => Player) private players;
-
-    event Deposit(address indexed user, uint amount);
-    event Withdraw(address indexed user, uint amount);
-    event Upgrade(address indexed user, uint newLevel, uint newUpgradeCost);
-    event RewardCollected(address indexed user, uint rewardAmount);
+    mapping(address => uint) public balanceOf;
 
     constructor(address _token) {
         token = IERC20(_token);
     }
+
+    struct Omen {
+        uint level;
+        string reward;
+        uint upgradeCost;
+        uint lastRewardTime;
+    }
+
+    mapping(address => Omen) private omens;
+
+    event Deposit(address indexed user, uint amount);
+    event Withdraw(address indexed user, uint amount);
+    event Upgrade(address indexed user, uint newLevel, uint newUpgradeCost);
+    event RewardCollected(address indexed user, string reward, uint level);
+
 
     function deposit(uint _amount) external {
         require(_amount > 0, "Deposit amount must be greater than zero");
@@ -32,7 +33,7 @@ contract Vault {
         token.transferFrom(msg.sender, address(this), _amount);
         balanceOf[msg.sender] += _amount;
         totalSupply += _amount;
-        
+
         emit Deposit(msg.sender, _amount);
     }
 
@@ -46,49 +47,48 @@ contract Vault {
         emit Withdraw(msg.sender, _amount);
     }
 
-    function upgradePlayer() external {
-        Player storage player = players[msg.sender];
-        require(player.level > 0, "Player not initialized");
+    function upgradeOmen() external {
+        Omen storage omen = omens[msg.sender];
+        require(omen.level > 0, "Omen not initialized");
 
-        uint cost = player.upgradeCost;
+        uint cost = omen.upgradeCost;
         require(balanceOf[msg.sender] >= cost, "Insufficient deposited tokens");
 
         balanceOf[msg.sender] -= cost;
         totalSupply -= cost;
 
-        player.level += 1;
-        player.upgradeCost = cost * 2;
+        omen.level += 1;
+        omen.upgradeCost = cost * 2;
 
-        emit Upgrade(msg.sender, player.level, player.upgradeCost);
+        emit Upgrade(msg.sender, omen.level, omen.upgradeCost);
     }
 
-    function getPlayerInfo(address _player) external view returns (uint level, uint upgradeCost) {
-        Player storage player = players[_player];
-        return (player.level, player.upgradeCost);
+    function getOmenInfo(address _owner) external view returns (uint level, string memory reward, uint upgradeCost) {
+        Omen storage omen = omens[_owner];
+        return (omen.level, omen.reward, omen.upgradeCost);
     }
 
     function dailyRewards() external {
-        Player storage player = players[msg.sender];
-        require(player.level > 0, "Player not initialized");
+        Omen storage omen = omens[msg.sender];
+        require(omen.level > 0, "Omen not initialized");
 
         uint currentTime = block.timestamp;
-        require(currentTime >= player.lastRewardTime + 1 days, "Rewards can only be collected once a day");
+        require(currentTime >= omen.lastRewardTime + 1 days, "Rewards can only be collected once a day");
 
-        uint rewardAmount = player.level * 2;
+        uint rewardAmount = omen.level * 2;
 
         balanceOf[msg.sender] += rewardAmount;
         totalSupply += rewardAmount;
-        player.lastRewardTime = currentTime;
+        omen.lastRewardTime = currentTime;
 
-
-        emit RewardCollected(msg.sender, rewardAmount);
+        emit RewardCollected(msg.sender, omen.reward, omen.level);
     }
 
-
-    function initializePlayer() external {
-        Player storage player = players[msg.sender];
-        require(player.level == 0, "Player already initialized");
-        player.level = 1;
-        player.upgradeCost = 100;
+    function initializeOmen(string calldata _reward) external {
+        Omen storage omen = omens[msg.sender];
+        require(omen.level == 0, "Omen already initialized");
+        omen.level = 1;
+        omen.reward = _reward;
+        omen.upgradeCost = 100;
     }
 }
