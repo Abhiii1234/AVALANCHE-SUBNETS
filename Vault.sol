@@ -1,82 +1,94 @@
-// SPDX-License-Identifier: MIT 
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.17;
 
-interface IERC20 {
-    function totalSupply() external view returns (uint);
-
-    function balanceOf(address account) external view returns (uint);
-
-    function transfer(address recipient, uint amount) external returns (bool);
-
-    function allowance(address owner, address spender) external view returns (uint);
-
-    function approve(address spender, uint amount) external returns (bool);
-
-    function transferFrom(
-        address sender,
-        address recipient,
-        uint amount
-    ) external returns (bool);
-
-    event Transfer(address indexed from, address indexed to, uint value);
-    event Approval(address indexed owner, address indexed spender, uint value);
-}
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 contract Vault {
     IERC20 public immutable token;
 
-    uint public totalSupply;
     mapping(address => uint) public balanceOf;
+    uint public totalSupply;
+
+    struct Player {
+        uint level;
+        uint upgradeCost;
+        uint lastRewardTime;
+    }
+
+    mapping(address => Player) private players;
+
+    event Deposit(address indexed user, uint amount);
+    event Withdraw(address indexed user, uint amount);
+    event Upgrade(address indexed user, uint newLevel, uint newUpgradeCost);
+    event RewardCollected(address indexed user, uint rewardAmount);
 
     constructor(address _token) {
         token = IERC20(_token);
     }
 
-    function _mint(address _to, uint _shares) private {
-        totalSupply += _shares;
-        balanceOf[_to] += _shares;
-    }
-
-    function _burn(address _from, uint _shares) private {
-        totalSupply -= _shares;
-        balanceOf[_from] -= _shares;
-    }
-
     function deposit(uint _amount) external {
-        /*
-        a = amount
-        B = balance of token before deposit
-        T = total supply
-        s = shares to mint
+        require(_amount > 0, "Deposit amount must be greater than zero");
 
-        (T + s) / T = (a + B) / B 
-
-        s = aT / B
-        */
-        uint shares;
-        if (totalSupply == 0) {
-            shares = _amount;
-        } else {
-            shares = (_amount * totalSupply) / token.balanceOf(address(this));
-        }
-
-        _mint(msg.sender, shares);
         token.transferFrom(msg.sender, address(this), _amount);
+        balanceOf[msg.sender] += _amount;
+        totalSupply += _amount;
+        
+        emit Deposit(msg.sender, _amount);
     }
 
-    function withdraw(uint _shares) external {
-        /*
-        a = amount
-        B = balance of token before withdraw
-        T = total supply
-        s = shares to burn
+    function withdraw(uint _amount) external {
+        require(balanceOf[msg.sender] >= _amount, "Insufficient balance");
 
-        (T - s) / T = (B - a) / B 
+        token.transfer(msg.sender, _amount);
+        balanceOf[msg.sender] -= _amount;
+        totalSupply -= _amount;
 
-        a = sB / T
-        */
-        uint amount = (_shares * token.balanceOf(address(this))) / totalSupply;
-        _burn(msg.sender, _shares);
-        token.transfer(msg.sender, amount);
+        emit Withdraw(msg.sender, _amount);
+    }
+
+    function upgradePlayer() external {
+        Player storage player = players[msg.sender];
+        require(player.level > 0, "Player not initialized");
+
+        uint cost = player.upgradeCost;
+        require(balanceOf[msg.sender] >= cost, "Insufficient deposited tokens");
+
+        balanceOf[msg.sender] -= cost;
+        totalSupply -= cost;
+
+        player.level += 1;
+        player.upgradeCost = cost * 2;
+
+        emit Upgrade(msg.sender, player.level, player.upgradeCost);
+    }
+
+    function getPlayerInfo(address _player) external view returns (uint level, uint upgradeCost) {
+        Player storage player = players[_player];
+        return (player.level, player.upgradeCost);
+    }
+
+    function dailyRewards() external {
+        Player storage player = players[msg.sender];
+        require(player.level > 0, "Player not initialized");
+
+        uint currentTime = block.timestamp;
+        require(currentTime >= player.lastRewardTime + 1 days, "Rewards can only be collected once a day");
+
+        uint rewardAmount = player.level * 2;
+
+        balanceOf[msg.sender] += rewardAmount;
+        totalSupply += rewardAmount;
+        player.lastRewardTime = currentTime;
+
+
+        emit RewardCollected(msg.sender, rewardAmount);
+    }
+
+
+    function initializePlayer() external {
+        Player storage player = players[msg.sender];
+        require(player.level == 0, "Player already initialized");
+        player.level = 1;
+        player.upgradeCost = 100;
     }
 }
